@@ -1,0 +1,45 @@
+/* AI 写稿直发公众号草稿箱：界面只用 kit.css 的变量，类名以 wd- 开头。
+   例外：.wd-paper 是手机里公众号文章的模拟预览，固定白底深色字，与软件亮暗色无关（文章本身的样式由排版主题内联）。 */
+.wd-host { container-type: inline-size; flex: 1; min-width: 0; }
+.wd { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); gap: 14px; align-items: start; min-height: 0; }
+.wd-edit { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.wd-ai summary { display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; list-style: none; }
+.wd-ai summary::-webkit-details-marker { display: none; }
+.wd-ai summary .k-muted { font-size: .9em; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wd-chev { color: var(--muted); transition: transform .15s var(--ease); flex: none; }
+.wd-ai[open] .wd-chev, .wd-chev.open { transform: rotate(180deg); }
+.wd-ai-body { display: grid; gap: 12px; padding: 0 14px 14px; }
+.wd-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.wd-row .k-seg { flex: 1 1 280px; }
+.wd .wd-words { width: auto; flex: none; }
+.wd-form { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.wd-two { align-items: start; }
+.wd-author { width: 150px; flex: none; }
+.wd-two .wd-grow { flex: 1 1 220px; }
+.wd-grow { flex: 1; min-width: 0; }
+.wd-lab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wd-count { font-size: .85em; color: var(--muted); font-weight: 400; }
+.wd-count.over { color: var(--err); font-weight: 600; }
+.wd-md { min-height: 300px; height: 52vh; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .92em; line-height: 1.7; }
+
+.wd-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; position: sticky; top: 0; }
+.wd-themes { display: flex; flex-wrap: wrap; gap: 6px; }
+.wd-themes .k-chip { padding: 3px 10px; font-size: .88em; }
+.wd-phone { border: 1px solid var(--line-strong); border-radius: 22px; padding: 10px; background: var(--chip); }
+.wd-paper { background: #fff; color: #222; border-radius: 14px; padding: 18px 16px 22px; height: 46vh; min-height: 300px; overflow: auto; user-select: text; color-scheme: light; }
+.wd-art-title { font-size: 20px; line-height: 1.4; font-weight: 700; color: #222; margin: 0 0 8px; }
+.wd-art-meta { font-size: 13px; color: #888; margin: 0 0 14px; display: flex; gap: 10px; }
+.wd-art-meta span { color: #576b95; }
+.wd-paper img { max-width: 100%; }
+.wd-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.wd-actions .primary { grid-column: 1 / -1; }
+.wd-cover { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .92em; }
+.wd-cover-hint { flex: 1; min-width: 0; font-size: .92em; }
+.wd-cover-file { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+.wd-cover-file img { width: 47px; height: 20px; object-fit: cover; border-radius: 3px; border: 1px solid var(--line); flex: none; }
+.wd-cred { overflow: hidden; }
+.wd-cred-hd { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 0; background: none; cursor: pointer; text-align: left; }
+.wd-cred-hd b { flex: 1; }
+.wd-cred-body { display: grid; gap: 10px; padding: 0 14px 14px; }
+.wd-cred-body .k-help b { color: var(--ink); }
+@container (max-width: 820px) { .wd { grid-template-columns: 1fr; } .wd-side { position: static; } .wd-paper { height: 60vh; } }
