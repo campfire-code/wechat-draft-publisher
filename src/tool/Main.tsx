@@ -1,6 +1,6 @@
 // 主界面：左边写稿（AI 生成 + 手动编辑），右边公众号样式预览；可复制富文本、导出 HTML、一键存到公众号草稿箱。
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Copy, FileDown, ImagePlus, KeyRound, Loader2, Send, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronLeft, CircleCheck, CircleDashed, Copy, FileDown, FileText, ImagePlus, Inbox, KeyRound, Loader2, Palette, Send, Sparkles, X } from 'lucide-react';
 import { defaultOutputDir, ensureDir, fileSrc, fs, pickFiles, reveal, settingsStore } from '../kit/platform';
 import { chat, llmReady, useSettings } from '../kit/settings';
 import {
@@ -190,6 +190,13 @@ export function Main({ preview }: { preview?: boolean }) {
   return (
     <div className="wd-host"><div className="wd">
       {!preview && <LlmWatch onChange={setLlmOk} />}
+      <ol className="wd-flow" aria-label="三步流程">
+        <li className={a.markdown.trim() ? 'done' : 'now'}><FileText size={16} /><span><b>写稿</b><small>AI 起草或自己写</small></span></li>
+        <ArrowRight size={16} className="wd-flow-arrow" aria-hidden />
+        <li className="done"><Palette size={16} /><span><b>排版</b><small>{themes.find((t) => t.id === prefs.theme)?.name ?? '默认'}主题</small></span></li>
+        <ArrowRight size={16} className="wd-flow-arrow" aria-hidden />
+        <li className={credOk && html ? 'now' : ''}><Inbox size={16} /><span><b>草稿箱</b><small>{credOk ? '随时可以存' : '先填公众号设置'}</small></span></li>
+      </ol>
       <div className="wd-edit">
         <details className="k-panel wd-ai" open={!a.markdown.trim() || undefined}>
           <summary><Sparkles size={15} /><b>AI 写稿</b><span className="k-muted">填主题和提纲，让大模型写初稿</span><ChevronDown size={15} className="wd-chev" /></summary>
@@ -235,18 +242,30 @@ export function Main({ preview }: { preview?: boolean }) {
       </div>
 
       <div className="wd-side">
-        <div className="wd-themes" role="radiogroup" aria-label="排版主题">
-          {themes.map((t) => <button key={t.id} role="radio" aria-checked={prefs.theme === t.id} className={`k-chip${prefs.theme === t.id ? ' on' : ''}`} onClick={() => setPrefs((o) => ({ ...o, theme: t.id }))}>{t.name}</button>)}
+        <div className="wd-stage">
+          <div className="wd-stage-hd"><b>公众号里的样子</b><span className="k-muted">换主题立即刷新</span></div>
+          <div className="wd-themes" role="radiogroup" aria-label="排版主题">
+            {themes.map((t) => <button key={t.id} role="radio" aria-checked={prefs.theme === t.id} className={`k-chip${prefs.theme === t.id ? ' on' : ''}`} onClick={() => setPrefs((o) => ({ ...o, theme: t.id }))}>{t.name}</button>)}
+          </div>
+          <div className="wd-phone" aria-label="公众号预览">
+            <div className="wd-phone-bar"><ChevronLeft size={16} /><span>公众号文章</span><i aria-hidden>···</i></div>
+            {/* 预览区模拟手机里的公众号文章，始终是白底（文章样式由排版主题决定，与软件的亮暗色无关） */}
+            <article className="wd-paper">
+              <h1 className="wd-art-title">{a.title || '未命名文章'}</h1>
+              <p className="wd-art-meta">{a.author || '作者'}<span>公众号名称</span></p>
+              {renderErr ? <p className="k-err-text">排版出错：{renderErr}</p> : <div dangerouslySetInnerHTML={{ __html: previewHtml }} />}
+            </article>
+          </div>
         </div>
 
-        <div className="wd-phone" aria-label="公众号预览">
-          {/* 预览区模拟手机里的公众号文章，始终是白底（文章样式由排版主题决定，与软件的亮暗色无关） */}
-          <article className="wd-paper">
-            <h1 className="wd-art-title">{a.title || '未命名文章'}</h1>
-            <p className="wd-art-meta">{a.author || '作者'}<span>公众号名称</span></p>
-            {renderErr ? <p className="k-err-text">排版出错：{renderErr}</p> : <div dangerouslySetInnerHTML={{ __html: previewHtml }} />}
-          </article>
-        </div>
+        <ul className="wd-check" aria-label="存草稿前检查">
+          {[
+            [!!a.title.trim(), '标题', a.title.trim() ? `${charCount(a.title)}/${LIMITS.title} 字` : '还没填'],
+            [!!a.markdown.trim(), '正文', `${charCount(a.markdown)} 字`],
+            [true, '封面', prefs.coverPath ? '用你选的图' : '自动选择'],
+            [credOk, '公众号设置', credOk ? '已填写' : '未填写'],
+          ].map(([ok, k, v]) => <li key={String(k)} className={ok ? 'ok' : ''}>{ok ? <CircleCheck size={15} /> : <CircleDashed size={15} />}<span>{k as string}</span><b>{v as string}</b></li>)}
+        </ul>
 
         <div className="wd-actions">
           <button className="k-btn" onClick={doCopy} disabled={!html}>{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? '已复制' : '复制富文本'}</button>
@@ -282,10 +301,10 @@ export function Main({ preview }: { preview?: boolean }) {
           </button>
           {showCred && (
             <div className="wd-cred-body">
-              <div className="k-field"><label className="k-label" htmlFor="wd-appid">AppID</label><input id="wd-appid" className="k-input" autoComplete="off" value={credDraft.appId} placeholder="wx 开头的 18 位" onChange={(e) => setCredDraft({ ...credDraft, appId: e.target.value })} /></div>
-              <div className="k-field"><label className="k-label" htmlFor="wd-secret">AppSecret</label><input id="wd-secret" className="k-input" type="password" autoComplete="off" value={credDraft.appSecret} placeholder="开发密钥" onChange={(e) => setCredDraft({ ...credDraft, appSecret: e.target.value })} /></div>
+              <div className="k-field"><label className="k-label" htmlFor="wd-appid">AppID（公众号 ID）</label><input id="wd-appid" className="k-input" autoComplete="off" value={credDraft.appId} placeholder="照着后台复制，共 18 位" onChange={(e) => setCredDraft({ ...credDraft, appId: e.target.value })} /></div>
+              <div className="k-field"><label className="k-label" htmlFor="wd-secret">AppSecret（公众号密钥）</label><input id="wd-secret" className="k-input" type="password" autoComplete="off" value={credDraft.appSecret} placeholder="开发密钥" onChange={(e) => setCredDraft({ ...credDraft, appSecret: e.target.value })} /></div>
               <p className="k-help">
-                AppID 和 AppSecret 在「微信开发者平台 → 我的业务 → 你的公众号」里查看，只保存在这台电脑上。<b>还需要把本机的公网 IP 加进同一页面的「API IP 白名单」</b>，否则会提示 IP 不在白名单（提示里会写出你的 IP）。未认证的订阅号可能没有草稿接口权限。
+                AppID（公众号 ID）和 AppSecret（公众号密钥）在「微信开发者平台 → 我的业务 → 你的公众号」里查看，只保存在这台电脑上。<b>还需要把本机的公网 IP 加进同一页面的「API IP 白名单」</b>，否则会提示 IP 不在白名单（提示里会写出你的 IP）。未认证的订阅号可能没有草稿接口权限。
               </p>
               <div className="wd-row">
                 <button className="k-btn primary" disabled={credDraft.appId === cred.appId && credDraft.appSecret === cred.appSecret} onClick={saveCred}>保存</button>

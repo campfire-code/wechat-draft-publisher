@@ -12,7 +12,7 @@ export async function loadImage(src: string): Promise<Img> {
     if (!res.ok) throw new Error(`下载失败（HTTP ${res.status}）`);
     bytes = new Uint8Array(await res.arrayBuffer());
   } else if (kind === 'local') bytes = await fs.readFile(localPath(src));
-  else throw new Error('图片要写完整路径或网址（例如 /Users/你/图片/a.png 或 https://…），相对路径找不到文件');
+  else throw new Error('图片要写完整路径或网址（例如 D:\\图片\\封面.png 或 https://…），相对路径找不到文件');
   const mime = sniffImage(bytes);
   if (!mime) throw new Error('不是可识别的图片文件');
   return { bytes, mime };

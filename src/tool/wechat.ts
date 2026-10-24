@@ -66,7 +66,7 @@ export function wxErrorText(code: number, errmsg = ''): string {
   const base = ERRORS[code];
   if (code === 40164) {
     const ip = ipFromErrmsg(errmsg);
-    return `${base}${ip ? `（微信看到的 IP 是 ${ip}）` : ''}。请打开「微信开发者平台（developers.weixin.qq.com/platform）→ 扫码登录 → 我的业务 → 选择这个公众号」，在「API IP 白名单」里加入这个 IP，保存后几分钟再试`;
+    return `${base}${ip ? `（微信看到的 IP 是 ${ip}）` : ''}。请打开「微信开发者平台（浏览器搜索即可找到）→ 扫码登录 → 我的业务 → 选择这个公众号」，在「API IP 白名单」里加入这个 IP，保存后几分钟再试`;
   }
   const short = errmsg.replace(/\s*rid:.*$/, '').replace(/,?\s*more details at \S+/, '').trim();
   return base ? `${base}（错误码 ${code}）` : `微信接口返回错误 ${code}${short ? `：${short}` : ''}`;
