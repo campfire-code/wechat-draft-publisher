@@ -1,6 +1,9 @@
 /* AI 写稿直发公众号草稿箱：界面只用 kit.css 的变量，类名以 wd- 开头。
    例外：.wd-paper 是手机里公众号文章的模拟预览，固定白底深色字，与软件亮暗色无关（文章本身的样式由排版主题内联）。 */
-.wd-host { container-type: inline-size; flex: 1; min-width: 0; }
+.wd-host { container-type: inline-size; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.wd-modes { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.wd-modes .k-seg { flex: none; }
+.wd-modes .k-muted { font-size: 13px; }
 .wd { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); gap: 14px; align-items: start; min-height: 0; }
 .wd-flow { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; list-style: none; margin: 0; padding: 0; }
 .wd-flow li { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 4px 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--muted); }
@@ -61,4 +64,32 @@
 .wd-cred-hd b { flex: 1; }
 .wd-cred-body { display: grid; gap: 10px; padding: 0 14px 14px; }
 .wd-cred-body .k-help b { color: var(--ink); }
+
+.wd-svc { display: grid; gap: 10px; }
+.wd-pad { align-self: end; min-height: 38px; }
+.wd-qr-img { width: 32px; height: 32px; object-fit: contain; border-radius: 3px; border: 1px solid var(--line); background: #fff; flex: none; }
+.wd-topics { display: flex; flex-wrap: wrap; gap: 6px; }
+.wd-topics .k-chip { padding: 4px 11px; font-size: 13px; min-height: 32px; text-align: left; }
+.wd .k-link:disabled { opacity: .5; cursor: default; }
+.wd-lab .k-link { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; }
+.wd .k-btn.danger { border-color: color-mix(in srgb, var(--err) 55%, var(--line)); color: var(--err); }
+.wd .k-btn.danger:not(:disabled):hover { background: color-mix(in srgb, var(--err) 10%, var(--surface)); }
+.wd-pub { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.wd-pub-hd { display: grid; gap: 2px; }
+.wd-pub-hd .k-muted { font-size: 13px; overflow-wrap: anywhere; }
+.wd-pub-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.wd-pub .k-help { margin: 0; }
+.wd-confirm { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: start; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--err); background: var(--err-soft); color: var(--err); }
+.wd-confirm p { margin: 0; color: var(--ink); font-size: 13.5px; line-height: 1.6; }
+.wd-confirm .wd-row { grid-column: 2; }
+.wd-drop { outline: 2px dashed var(--primary); outline-offset: -2px; }
+.wd-card-edit { display: grid; gap: 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.wd-card-no { color: var(--primary); font-weight: 700; min-width: 28px; }
+.wd-thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.wd-thumb { width: 100%; aspect-ratio: 3 / 4; height: auto; border-radius: 6px; border: 1px solid var(--line); background: #fff; }
+.wd-thumb.over { border: 2px solid var(--err); }
+.wd-empty-note { margin: 0; padding: 24px 8px; text-align: center; }
+.wd-save-as { display: flex; align-items: center; gap: 10px; }
+.wd-save-as .k-seg { flex: 1; }
 @container (max-width: 820px) { .wd-flow li small { display: none; }  .wd { grid-template-columns: 1fr; } .wd-side { position: static; } .wd-paper { height: 50vh; } }
+.wd-actions .k-btn:nth-child(3) { grid-column: 1 / -1; }

@@ -1,6 +1,7 @@
 // 本机侧的图片处理：读取正文图片、用画布转码压缩、按标题生成封面。依赖浏览器画布和 Tauri，不做单元测试（逻辑分支在 wechat.ts 里测）。
 import { fs, httpFetch } from '../kit/platform';
 import { decodeDataUrl, imageKind, localPath, sniffImage } from './core';
+import { coverCropRect } from './ai';
 import type { Img } from './wechat';
 
 export async function loadImage(src: string): Promise<Img> {
@@ -82,5 +83,18 @@ export async function makeCover(title: string, color = '#6D28D9'): Promise<Img> 
   if (lines.length > 3) { lines.length = 3; lines[2] = lines[2].slice(0, -1) + '…'; }
   const lh = 64;
   lines.forEach((l, i) => g.fillText(l, 70, 383 / 2 + (i - (lines.length - 1) / 2) * lh));
+  return { bytes: await canvasJpeg(c, 0.9), mime: 'image/jpeg' };
+}
+
+/** 把图片居中裁成指定宽高比（例如 AI 生成的方图裁成 2.35:1 的封面），输出 JPG */
+export async function cropToRatio(img: Img, ratio: number, maxWidth = 1200): Promise<Img> {
+  const el = await toBitmapSource(img);
+  const r = coverCropRect(el.naturalWidth, el.naturalHeight, ratio);
+  const w = Math.min(maxWidth, r.sw);
+  const h = Math.round(w / ratio);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d')!;
+  g.drawImage(el, r.sx, r.sy, r.sw, r.sh, 0, 0, w, h);
   return { bytes: await canvasJpeg(c, 0.9), mime: 'image/jpeg' };
 }

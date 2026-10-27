@@ -9,6 +9,7 @@
 | [Lucide](https://github.com/lucide-icons/lucide) | 图标 | ISC |
 | [Vite](https://github.com/vitejs/vite) | 构建 | MIT |
 | [@wenyan-md/core](https://github.com/caol64/wenyan-core)（文颜） | Markdown 转公众号排版、内置主题 | Apache-2.0 |
+| [FFmpeg](https://ffmpeg.org) 6.x 静态构建（取自 [eugeneware/ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) b6.1.1；Windows 版来自 gyan.dev） | 从本机视频里提取音频，作为独立程序随应用分发 | GPL-3.0（许可证随安装包附在 licenses/ffmpeg-LICENSE.txt；源码见 https://ffmpeg.org/download.html） |
 | [marked](https://github.com/markedjs/marked)、[marked-highlight](https://github.com/markedjs/marked-highlight) | Markdown 解析（wenyan 依赖） | MIT |
 | [highlight.js](https://github.com/highlightjs/highlight.js) | 代码高亮（wenyan 依赖） | BSD-3-Clause |
 | [MathJax](https://github.com/mathjax/MathJax-src)（mathjax-full） | 数学公式（wenyan 依赖） | Apache-2.0 |

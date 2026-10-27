@@ -2,7 +2,7 @@
   "id": "w02",
   "slug": "wechat-draft-publisher",
   "name": "AI 写稿直发公众号草稿箱",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "repo": "campfire-code/wechat-draft-publisher",
   "license": "MIT",
   "ui": {
@@ -13,5 +13,6 @@
   "upstream": {
     "repo": "caol64/wenyan-mcp",
     "license": "Apache-2.0"
-  }
+  },
+  "ffmpeg": true
 }

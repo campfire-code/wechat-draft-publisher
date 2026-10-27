@@ -4,6 +4,11 @@
 //   POST https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token=TOKEN        form-data 字段 media，jpg/png，1MB 以下，返回 url
 //   POST https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=TOKEN&type=image  form-data 字段 media，10MB 以下，返回 media_id、url
 //   POST https://api.weixin.qq.com/cgi-bin/draft/add?access_token=TOKEN             { articles: [{ title, author, digest, content, thumb_media_id, ... }] }，返回 media_id
+//        article_type=newspic（图片消息）：image_info.image_list[].image_media_id（永久素材，最多 20 张，首张为封面）、cover_info.crop_percent_list（比例 1_1 / 16_9 / 2.35_1）
+//   POST https://api.weixin.qq.com/cgi-bin/message/mass/preview?access_token=TOKEN  { towxname 或 touser, msgtype: 'mpnews', mpnews: { media_id } }；按微信号预览每日 100 次，仅认证号可调用
+//   POST https://api.weixin.qq.com/cgi-bin/message/mass/sendall?access_token=TOKEN  { filter: { is_to_all }, msgtype: 'mpnews', mpnews: { media_id }, clientmsgid }，返回 msg_id、msg_data_id
+//        mpnews 的 media_id 可直接用草稿接口返回的值，群发成功后该 media_id 失效、草稿自动删除
+//   POST https://api.weixin.qq.com/cgi-bin/freepublish/submit?access_token=TOKEN    { media_id }，返回 publish_id；只代表任务已提交，结果由回调事件通知（本工具收不到回调）
 // 请求的构造与响应的解析都是纯函数；真正发请求的 http 函数从外面传入，测试里用录制的响应代替。
 import { LIMITS, collectImageSrcs, cut, extOf, isWechatImage, replaceImageSrcs } from './core';
 
@@ -12,6 +17,9 @@ export const tokenUrl = (appId: string, secret: string) => `${API}/token?grant_t
 export const uploadImgUrl = (token: string) => `${API}/media/uploadimg?access_token=${encodeURIComponent(token)}`;
 export const addMaterialUrl = (token: string, type: 'image' | 'thumb') => `${API}/material/add_material?access_token=${encodeURIComponent(token)}&type=${type}`;
 export const draftAddUrl = (token: string) => `${API}/draft/add?access_token=${encodeURIComponent(token)}`;
+export const previewUrl = (token: string) => `${API}/message/mass/preview?access_token=${encodeURIComponent(token)}`;
+export const sendAllUrl = (token: string) => `${API}/message/mass/sendall?access_token=${encodeURIComponent(token)}`;
+export const submitUrl = (token: string) => `${API}/freepublish/submit?access_token=${encodeURIComponent(token)}`;
 
 /** 正文图片上限（uploadimg）与封面图上限（add_material type=image） */
 export const CONTENT_IMAGE_MAX = 1024 * 1024;
@@ -46,6 +54,19 @@ const ERRORS: Record<number, string> = {
   50002: '公众号受限，可能已被冻结或注销',
   50004: '该公众号被禁止使用 access_token 接口',
   50007: '公众号已冻结',
+  40229: '封面为空，请先给文章设置封面',
+  42010: '操作太快，请稍后重试',
+  45011: '每分钟调用太频繁，请稍后再试',
+  45028: '当前周期内的群发次数已用完',
+  45062: '这个公众号已接了广告，不支持用接口群发',
+  45065: '这篇文章已经提交过群发（相同的群发 ID 24 小时内不能重复）',
+  45066: '相同的群发请求重试太快，请间隔 1 分钟再试',
+  48021: '这份草稿是系统自动保存的，不允许群发；请到公众号后台手动保存一次后再试',
+  53503: '草稿没有通过发布检查，请到公众号后台打开草稿，按提示修改',
+  53504: '这份草稿需要先在公众号后台手动操作（如答题）后才能发布',
+  53505: '请先在公众号后台手动保存这份草稿，再发布',
+  89504: '群发进入了管理员确认流程，请在 30 分钟内用管理员微信确认',
+  89505: '群发进入了管理员确认流程，请在 30 分钟内用管理员微信确认',
   53404: '账号已被限制带货能力',
   53405: '插入的商品信息有误',
   53406: '尚未开通带货能力',
@@ -125,10 +146,83 @@ export function draftBody(a: DraftArticle): string {
   return JSON.stringify({ articles: [art] });
 }
 
+// ---------- 图片消息（贴图）草稿 ----------
+
+export interface PicDraft {
+  title: string;
+  /** 图片消息的文字描述，只支持纯文本 */
+  content: string;
+  /** 永久素材 media_id，首张作封面，最多 20 张 */
+  imageMediaIds: string[];
+  /** 图片尺寸，用来算封面裁剪 */
+  width?: number;
+  height?: number;
+  openComment?: boolean;
+}
+
+export const PIC_MAX_IMAGES = 20;
+/** 参考实现里的经验值：图片消息的标题在手机上显示约 20 字，更长会被截断。官方只限制 32 字，这条未核实 */
+export const PIC_TITLE_SOFT = 20;
+/** 描述文字的保守上限（UTF-8 字节）。官方文档没写明图片消息 content 的长度限制，沿用参考实现的保守值 */
+export const PIC_CONTENT_BYTES = 600;
+
+/** 按 UTF-8 字节截断，不切坏字符 */
+export function cutBytes(s: string, max: number): string {
+  const enc = new TextEncoder();
+  if (enc.encode(s).length <= max) return s;
+  let out = '';
+  let n = 0;
+  for (const ch of s) {
+    const b = enc.encode(ch).length;
+    if (n + b > max) break;
+    out += ch;
+    n += b;
+  }
+  return out;
+}
+
+/** 居中裁剪：给 1_1、16_9、2.35_1 三种预览比例各算一个裁剪框（比例值 0～1） */
+export function cropPercentList(w = 1080, h = 1440): { ratio: string; x1: string; y1: string; x2: string; y2: string }[] {
+  const src = w / h;
+  const f = (n: number) => n.toFixed(6);
+  return ([['1_1', 1], ['16_9', 16 / 9], ['2.35_1', 2.35]] as [string, number][]).map(([ratio, t]) => {
+    if (t >= src) {
+      const pad = (h - w / t) / 2 / h;
+      return { ratio, x1: '0', y1: f(pad), x2: '1', y2: f(1 - pad) };
+    }
+    const pad = (w - h * t) / 2 / w;
+    return { ratio, x1: f(pad), y1: '0', x2: f(1 - pad), y2: '1' };
+  });
+}
+
+export function picDraftBody(d: PicDraft): string {
+  const art = {
+    article_type: 'newspic',
+    title: cut(d.title.trim(), LIMITS.title),
+    content: cutBytes(d.content.trim(), PIC_CONTENT_BYTES),
+    need_open_comment: d.openComment ? 1 : 0,
+    only_fans_can_comment: 0,
+    image_info: { image_list: d.imageMediaIds.slice(0, PIC_MAX_IMAGES).map((id) => ({ image_media_id: id })) },
+    cover_info: { crop_percent_list: cropPercentList(d.width, d.height) },
+  };
+  return JSON.stringify({ articles: [art] });
+}
+
+// ---------- 预览、发布、群发 ----------
+
+export const previewBody = (wxName: string, mediaId: string) => JSON.stringify({ towxname: wxName.trim(), msgtype: 'mpnews', mpnews: { media_id: mediaId } });
+
+/** 群发 ID：同一份草稿固定一个，重复点击时微信会拒绝重复群发（45065）。不超过 32 字节 */
+export const clientMsgId = (mediaId: string) => `w02-${mediaId.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 24)}`;
+
+export const sendAllBody = (mediaId: string) => JSON.stringify({ filter: { is_to_all: true }, msgtype: 'mpnews', mpnews: { media_id: mediaId }, send_ignore_reprint: 0, clientmsgid: clientMsgId(mediaId) });
+
+export const submitBody = (mediaId: string) => JSON.stringify({ media_id: mediaId });
+
 // ---------- 发请求（http 从外面传入） ----------
 
-export interface HttpResponse { status: number; text(): Promise<string> }
-export type Http = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: Uint8Array | string }) => Promise<HttpResponse>;
+export interface HttpResponse { status: number; text(): Promise<string>; /** 下载图片等二进制内容时用 */ bytes?(): Promise<Uint8Array> }
+export type Http = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: Uint8Array | string; timeoutMs?: number }) => Promise<HttpResponse>;
 
 const call = async <T>(http: Http, url: string, init?: Parameters<Http>[1]) => {
   const res = await http(url, init);
@@ -163,6 +257,32 @@ export async function uploadCover(http: Http, token: string, bytes: Uint8Array, 
 export async function addDraft(http: Http, token: string, a: DraftArticle): Promise<string> {
   const r = await call<{ media_id: string }>(http, draftAddUrl(token), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: draftBody(a) });
   return r.media_id;
+}
+
+const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
+
+/** 新增图片消息草稿 */
+export async function addPicDraft(http: Http, token: string, d: PicDraft): Promise<string> {
+  const r = await call<{ media_id: string }>(http, draftAddUrl(token), { method: 'POST', headers: JSON_HEADERS, body: picDraftBody(d) });
+  return r.media_id;
+}
+
+/** 预览：把草稿发到指定微信号（对方需要关注了这个公众号） */
+export async function sendPreview(http: Http, token: string, wxName: string, mediaId: string): Promise<void> {
+  if (!wxName.trim()) throw new Error('还没有填写预览微信号');
+  await call<unknown>(http, previewUrl(token), { method: 'POST', headers: JSON_HEADERS, body: previewBody(wxName, mediaId) });
+}
+
+/** 群发给全部粉丝。成功只代表任务已提交；群发后这份草稿会被微信删除 */
+export async function massSendAll(http: Http, token: string, mediaId: string): Promise<{ msgId: string; msgDataId: string }> {
+  const r = await call<{ msg_id?: number | string; msg_data_id?: number | string }>(http, sendAllUrl(token), { method: 'POST', headers: JSON_HEADERS, body: sendAllBody(mediaId) });
+  return { msgId: String(r.msg_id ?? ''), msgDataId: String(r.msg_data_id ?? '') };
+}
+
+/** 发布：把草稿提交发布。成功只代表任务已提交，最终结果以公众号后台为准 */
+export async function freePublish(http: Http, token: string, mediaId: string): Promise<{ publishId: string }> {
+  const r = await call<{ publish_id?: number | string }>(http, submitUrl(token), { method: 'POST', headers: JSON_HEADERS, body: submitBody(mediaId) });
+  return { publishId: String(r.publish_id ?? '') };
 }
 
 export interface Img { bytes: Uint8Array; mime: string }
@@ -226,4 +346,35 @@ export async function saveDraft(deps: PublishDeps, input: PublishInput): Promise
   step('正在存入草稿箱…');
   const mediaId = await addDraft(deps.http, token, { title: input.title, author: input.author, digest: input.digest, content, thumbMediaId });
   return { mediaId, images: srcs.length, coverFrom };
+}
+
+// ---------- 图片消息：上传全部图片 → 新增草稿 ----------
+
+export interface PicInput {
+  appId: string;
+  appSecret: string;
+  title: string;
+  content: string;
+  /** 按顺序，首张作封面；已经是 PNG / JPG 的卡片图 */
+  images: Img[];
+  width: number;
+  height: number;
+  openComment?: boolean;
+}
+
+export async function savePicDraft(deps: Pick<PublishDeps, 'http' | 'fitImage' | 'onStep'>, input: PicInput): Promise<{ mediaId: string; images: number }> {
+  const step = deps.onStep ?? (() => {});
+  if (!input.images.length) throw new Error('没有可上传的图片');
+  if (input.images.length > PIC_MAX_IMAGES) throw new Error(`图片消息最多 ${PIC_MAX_IMAGES} 张图，现在有 ${input.images.length} 张`);
+  step('正在连接公众号…');
+  const token = await getAccessToken(deps.http, input.appId, input.appSecret);
+  const ids: string[] = [];
+  for (let i = 0; i < input.images.length; i++) {
+    step(`正在上传图片 ${i + 1}/${input.images.length}…`);
+    const fit = await deps.fitImage(input.images[i], COVER_IMAGE_MAX, true);
+    ids.push(await uploadCover(deps.http, token, fit.bytes, fit.mime, `card${i + 1}.${extOf(fit.mime)}`));
+  }
+  step('正在存入草稿箱…');
+  const mediaId = await addPicDraft(deps.http, token, { title: input.title, content: input.content, imageMediaIds: ids, width: input.width, height: input.height, openComment: input.openComment });
+  return { mediaId, images: ids.length };
 }

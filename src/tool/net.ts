@@ -7,7 +7,7 @@ export const tauriHttp: Http = async (url, init = {}) => {
     method: init.method ?? 'GET',
     headers: init.headers,
     body: init.body as BodyInit | undefined,
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(init.timeoutMs ?? 60_000),
   });
-  return { status: res.status, text: () => res.text() };
+  return { status: res.status, text: () => res.text(), bytes: async () => new Uint8Array(await res.arrayBuffer()) };
 };

@@ -186,7 +186,6 @@ export interface Prefs {
   coverPath: string;
 }
 export const PREFS_KEY = 'w02.prefs';
-export const WECHAT_KEY = 'w02.wechat';
 
 export function readPrefs(raw: unknown, fallback: Prefs): Prefs {
   const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
